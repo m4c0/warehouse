@@ -44,7 +44,6 @@ static ID3D12Resource       * d3d_txt;
 static ID3D12Resource       * d3d_txt_upload;
 static ID3D12DescriptorHeap * d3d_txt_heap;
 static ID3D12DescriptorHeap * d3d_smp_heap;
-static void *                 d3d_txt_data;
 
 static ID3D12Fence * d3d_fence;
 static unsigned      d3d_frame_idx;
@@ -356,7 +355,7 @@ static int d3d_init_txt(void) {
       &heap, D3D12_HEAP_FLAG_NONE, &res, D3D12_RESOURCE_STATE_GENERIC_READ, NULL, 
       &IID_ID3D12Resource, (void **)&d3d_txt_upload);
 
-  COM_CHK(d3d_txt_upload, Map, 0, NULL, &btd_atlas);
+  COM_CHK(d3d_txt_upload, Map, 0, NULL, (void **)&btd_atlas);
 
   return 0;
 }
