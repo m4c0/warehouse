@@ -510,7 +510,7 @@ void btd_replace_atlas() {
   if (!COM(d3d_txt_upload, Map, 0, NULL, (void **)&map)) return;
 
   for (int y = 0; y < 32; y++) {
-    for (int x = 0; x < 32; x++) {
+    for (int x = 0; x < 128; x++) {
       map[y * d3d_txt_pitch + x] = btd_atlas[y * 128 + x];
     }
   }
@@ -525,7 +525,7 @@ static LRESULT window_proc(HWND hwnd, UINT msg, WPARAM w_param, LPARAM l_param) 
       return 0;
 
     case WM_KEYDOWN:
-      if (HIWORD(l_param) & KF_REPEAT) return 0;
+      // if (HIWORD(l_param) & KF_REPEAT) return 0;
 
       switch (LOWORD(w_param)) {
         case VK_LEFT:  btd_cursor(-1,  0); break;

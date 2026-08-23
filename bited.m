@@ -41,7 +41,6 @@ static id<MTLLibrary> load_library(id<MTLDevice> device, NSString * name) {
   td.width       = 128;
   td.height      = 32;
   btd_texture = d.texture = [device newTextureWithDescriptor:td];
-  btd_atlas = malloc(128 * 32);
   btd_load();
 
   MTLSamplerDescriptor * sd = [MTLSamplerDescriptor new];
