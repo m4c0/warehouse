@@ -448,6 +448,8 @@ static void d3d_cmd_transition_barrier(ID3D12Resource * res, D3D12_RESOURCE_STAT
   COM(d3d_cmd_list, ResourceBarrier, 1, &b);
 }
 int d3d_frame(void) {
+  mpd_frame();
+
   COM_CHK(d3d_cmd_alloc, Reset);
   COM_CHK(d3d_cmd_list, Reset, d3d_cmd_alloc, d3d_pso);
 
@@ -505,6 +507,7 @@ int d3d_frame(void) {
   return 0;
 }
 
+void mpd_update_map() {}
 
 static LRESULT window_proc(HWND hwnd, UINT msg, WPARAM w_param, LPARAM l_param) {
   switch (msg) {
@@ -572,6 +575,11 @@ int WinMain(HINSTANCE h_instance, HINSTANCE h_prev, LPSTR cmd_line, int cmd_show
   }
 
   if (d3d_init(hwnd)) return 1;
+
+  unsigned sz;
+  const char * data = slurp("levels.txt", &sz);
+  lvl_init(data, sz);
+  mpd_load_map(0);
 
   ShowWindow(hwnd, cmd_show);
   UpdateWindow(hwnd);

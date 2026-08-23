@@ -132,4 +132,16 @@ void mpd_save() {
   fclose(f);
 }
 
+void mpd_frame(void) {
+  mpd_pc.cursor_x = mpd_cur_x;
+  mpd_pc.cursor_y = mpd_cur_y;
+  mpd_pc.label_pos_x = lvl_min_x;
+  mpd_pc.label_pos_y = lvl_min_y - 1;
+  mpd_pc.player_pos_x = lvl_px;
+  mpd_pc.player_pos_y = lvl_py;
+  mpd_pc.level = lvl_current + 1;
+  mpd_pc.aspect = (float)800 / (float)600;
+  mpd_pc.time = tim_now();
+}
+
 #endif
