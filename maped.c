@@ -362,7 +362,7 @@ static int d3d_init_txt(void) {
 }
 
 static int d3d_init_buffer(void) {
-  int size = LVL_SZ;
+  int size = LVL_SZ * sizeof(unsigned);
 
   D3D12_HEAP_PROPERTIES heap = {
     .Type = D3D12_HEAP_TYPE_UPLOAD,
@@ -524,9 +524,9 @@ int d3d_frame(void) {
 }
 
 void mpd_update_map() {
-  char * map;
+  unsigned * map;
   COM(d3d_buffer, Map, 0, NULL, (void **)&map);
-  memcpy(map, mpd_ptr, LVL_SZ);
+  for (int i = 0; i < LVL_SZ; i++) map[i] = mpd_ptr[i];
   COM(d3d_buffer, Unmap, 0, NULL);
 }
 
