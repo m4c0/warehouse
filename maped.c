@@ -438,6 +438,9 @@ void d3d_deinit(void) {
 
   d3d_release(d3d_fence);
 
+  d3d_release(d3d_txt_heap);
+  d3d_release(d3d_txt_upload);
+  d3d_release(d3d_txt);
   d3d_release(d3d_buffer);
   d3d_release(d3d_cmd_list);
   d3d_release(d3d_pso);

@@ -45,6 +45,11 @@ static ID3D12PipelineState       * d3d_pso;
 static ID3D12Resource * d3d_rt[BUFFER_COUNT];
 static ID3D12Resource * d3d_buffer;
 
+static ID3D12Resource       * d3d_txt;
+static ID3D12Resource       * d3d_txt_upload;
+static unsigned               d3d_txt_pitch;
+static ID3D12DescriptorHeap * d3d_txt_heap;
+
 static ID3D12Fence * d3d_fence;
 static unsigned      d3d_frame_idx;
 static HANDLE        d3d_fence_event;
@@ -58,6 +63,13 @@ typedef void (STDMETHODCALLTYPE * d3d_get_cpu_desc_t)(ID3D12DescriptorHeap *, D3
 static D3D12_CPU_DESCRIPTOR_HANDLE d3d_get_cpu_desc(ID3D12DescriptorHeap * heap) {
   D3D12_CPU_DESCRIPTOR_HANDLE h;
   ((d3d_get_cpu_desc_t)heap->lpVtbl->GetCPUDescriptorHandleForHeapStart)(heap, &h);
+  return h;
+}
+
+typedef void (STDMETHODCALLTYPE * d3d_get_gpu_desc_t)(ID3D12DescriptorHeap *, D3D12_GPU_DESCRIPTOR_HANDLE *);
+static D3D12_GPU_DESCRIPTOR_HANDLE d3d_get_gpu_desc(ID3D12DescriptorHeap * heap) {
+  D3D12_GPU_DESCRIPTOR_HANDLE h;
+  ((d3d_get_gpu_desc_t)heap->lpVtbl->GetGPUDescriptorHandleForHeapStart)(heap, &h);
   return h;
 }
 
@@ -273,6 +285,69 @@ static int d3d_init_pso() {
   return 0;
 }
 
+static int d3d_init_txt_heap(void) {
+  D3D12_DESCRIPTOR_HEAP_DESC desc = {
+    .NumDescriptors = 1,
+    .Flags          = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE,
+  };
+  COM_CHK(d3d_device, CreateDescriptorHeap, &desc, &IID_ID3D12DescriptorHeap, (void **)&d3d_txt_heap);
+  return 0;
+}
+static int d3d_init_txt(void) {
+  D3D12_HEAP_PROPERTIES heap = {
+    .Type = D3D12_HEAP_TYPE_DEFAULT,
+  };
+  D3D12_RESOURCE_DESC res = {
+    .Dimension        = D3D12_RESOURCE_DIMENSION_TEXTURE2D,
+    .Format           = DXGI_FORMAT_R8_UNORM,
+    .Width            = 128,
+    .Height           = 32,
+    .DepthOrArraySize = 1,
+    .MipLevels        = 1,
+    .SampleDesc       = (DXGI_SAMPLE_DESC) {
+      .Count          = 1,
+    },
+  };
+  D3D_CHK(d3d_device, CreateCommittedResource,
+      &heap, D3D12_HEAP_FLAG_NONE, &res, D3D12_RESOURCE_STATE_COPY_DEST, NULL, 
+      &IID_ID3D12Resource, (void **)&d3d_txt);
+
+  D3D12_SHADER_RESOURCE_VIEW_DESC srv_desc = {
+    .Format                  = DXGI_FORMAT_R8_UNORM,
+    .ViewDimension           = D3D12_SRV_DIMENSION_TEXTURE2D,
+    .Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING,
+    .Texture2D               = {
+      .MipLevels             = 1,
+    },
+  };
+  COM(d3d_device, CreateShaderResourceView, d3d_txt, &srv_desc, d3d_get_cpu_desc(d3d_txt_heap));
+
+  D3D12_PLACED_SUBRESOURCE_FOOTPRINT layout;
+  uint64_t sz;
+  COM(d3d_device, GetCopyableFootprints, &res, 0, 1, 0, &layout, NULL, NULL, &sz);
+  d3d_txt_pitch = layout.Footprint.RowPitch;
+
+  heap = (D3D12_HEAP_PROPERTIES) {
+    .Type = D3D12_HEAP_TYPE_UPLOAD,
+  };
+  res = (D3D12_RESOURCE_DESC) {
+    .Dimension        = D3D12_RESOURCE_DIMENSION_BUFFER,
+    .Layout           = D3D12_TEXTURE_LAYOUT_ROW_MAJOR,
+    .Width            = sz,
+    .Height           = 1,
+    .DepthOrArraySize = 1,
+    .MipLevels        = 1,
+    .SampleDesc       = (DXGI_SAMPLE_DESC) {
+      .Count          = 1,
+    },
+  };
+  D3D_CHK(d3d_device, CreateCommittedResource,
+      &heap, D3D12_HEAP_FLAG_NONE, &res, D3D12_RESOURCE_STATE_GENERIC_READ, NULL, 
+      &IID_ID3D12Resource, (void **)&d3d_txt_upload);
+
+  return 0;
+}
+
 static int d3d_init_buffer(void) {
   int size = GLU_BUF_SIZE;
 
@@ -315,6 +390,9 @@ int d3d_init(HWND hwnd) {
   if (d3d_init_pso())            return 1;
   if (d3d_init_cmdlist())        return 1;
 
+  if (d3d_init_txt_heap()) return 1;
+  if (d3d_init_txt())      return 1;
+
   if (d3d_init_buffer()) return 1;
 
   COM_CHK(d3d_device, CreateFence, 0, D3D12_FENCE_FLAG_NONE, &IID_ID3D12Fence, (void **)&d3d_fence);
@@ -347,6 +425,9 @@ void d3d_deinit(void) {
 
   d3d_release(d3d_fence);
 
+  d3d_release(d3d_txt_heap);
+  d3d_release(d3d_txt_upload);
+  d3d_release(d3d_txt);
   d3d_release(d3d_buffer);
   d3d_release(d3d_cmd_list);
   d3d_release(d3d_pso);
@@ -362,10 +443,10 @@ void d3d_deinit(void) {
   CloseHandle(d3d_fence_event);
 }
 
-static void d3d_cmd_transition_barrier(D3D12_RESOURCE_STATES before, D3D12_RESOURCE_STATES after) {
+static void d3d_cmd_transition_barrier(ID3D12Resource * res, D3D12_RESOURCE_STATES before, D3D12_RESOURCE_STATES after) {
   D3D12_RESOURCE_BARRIER b = {
     .Transition    = {
-      .pResource   = d3d_rt[d3d_frame_idx],
+      .pResource   = res,
       .StateBefore = before,
       .StateAfter  = after,
     }
@@ -376,16 +457,39 @@ int d3d_frame(void) {
   COM_CHK(d3d_cmd_alloc, Reset);
   COM_CHK(d3d_cmd_list, Reset, d3d_cmd_alloc, d3d_pso);
 
+  // TODO: do it once
+  D3D12_TEXTURE_COPY_LOCATION dst = {
+    .pResource = d3d_txt,
+  };
+  D3D12_TEXTURE_COPY_LOCATION src = {
+    .Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT,
+    .pResource = d3d_txt_upload,
+    .PlacedFootprint = {
+      .Footprint = {
+        .Format   = DXGI_FORMAT_R8_UNORM,
+        .Width    = 128,
+        .Height   = 32,
+        .Depth    = 1,
+        .RowPitch = d3d_txt_pitch,
+      },
+    },
+  };
+  COM(d3d_cmd_list, CopyTextureRegion, &dst, 0, 0, 0, &src, NULL);
+  d3d_cmd_transition_barrier(d3d_txt, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+
+  COM(d3d_cmd_list, SetDescriptorHeaps, 1, (ID3D12DescriptorHeap *[]) { d3d_txt_heap });
+
   COM(d3d_cmd_list, SetGraphicsRootSignature, d3d_root_sign);
   COM(d3d_cmd_list, SetGraphicsRootShaderResourceView, 0, COM(d3d_buffer, GetGPUVirtualAddress));
   COM(d3d_cmd_list, SetGraphicsRoot32BitConstants, 1, sizeof(glu_upc_t) / 4, &glu_pc, 0);
+  COM(d3d_cmd_list, SetGraphicsRootDescriptorTable, 2, d3d_get_gpu_desc(d3d_txt_heap));
 
   D3D12_VIEWPORT vp = { 0, 0, SCR_W, SCR_H };
   COM(d3d_cmd_list, RSSetViewports, 1, &vp);
   D3D12_RECT     sc = { 0, 0, SCR_W, SCR_H };
   COM(d3d_cmd_list, RSSetScissorRects, 1, &sc);
 
-  d3d_cmd_transition_barrier(D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
+  d3d_cmd_transition_barrier(d3d_rt[d3d_frame_idx], D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
 
   D3D12_CPU_DESCRIPTOR_HANDLE rtv = d3d_get_rtv_cpu_desc(d3d_frame_idx);
   COM(d3d_cmd_list, OMSetRenderTargets, 1, &rtv, FALSE, NULL);
@@ -395,7 +499,7 @@ int d3d_frame(void) {
   COM(d3d_cmd_list, IASetPrimitiveTopology, D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
   COM(d3d_cmd_list, DrawInstanced, 3, 1, 0, 0);
 
-  d3d_cmd_transition_barrier(D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
+  d3d_cmd_transition_barrier(d3d_rt[d3d_frame_idx], D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
 
   COM_CHK(d3d_cmd_list, Close);
 
@@ -531,6 +635,20 @@ int WinMain(HINSTANCE h_instance, HINSTANCE h_prev, LPSTR cmd_line, int cmd_show
     .scr_h    = rect.bottom - rect.top,
   };
   glu_init(&t);
+
+  r = FindResource(NULL, "atlas", "img");
+  g = LoadResource(NULL, r);
+  ptr = LockResource(g);
+  sz = SizeofResource(NULL, r);
+  
+  char * map;
+  COM(d3d_txt_upload, Map, 0, NULL, (void **)&map);
+  for (int y = 0; y < 32; y++) {
+    for (int x = 0; x < 128; x++) {
+      map[y * d3d_txt_pitch + x] = ((char *)ptr)[y * 128 + x];
+    }
+  }
+  COM(d3d_txt_upload, Unmap, 0, NULL);
 
   ShowWindow(hwnd, cmd_show);
   UpdateWindow(hwnd);
