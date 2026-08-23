@@ -454,9 +454,13 @@ static void d3d_cmd_transition_barrier(ID3D12Resource * res, D3D12_RESOURCE_STAT
   COM(d3d_cmd_list, ResourceBarrier, 1, &b);
 }
 
-static void d3d_mui_draw() {
+static void d3d_mui_draw(void * ptr, const mui_upc_t * pc) {
+  //COM(d3d_cmd_list, SetGraphicsRoot32BitConstants, 1, sizeof(mui_upc_t) / 4, pc, 0);
+  //COM(d3d_cmd_list, DrawInstanced, 4, 1, 0, 0);
 }
-static void d3d_mui_scissor() {
+static void d3d_mui_scissor(void * ptr, unsigned x, unsigned y, unsigned w, unsigned h) {
+  D3D12_RECT sc = { x, y, w, h };
+  COM(d3d_cmd_list, RSSetScissorRects, 1, &sc);
 }
 int d3d_frame(void) {
   COM_CHK(d3d_cmd_alloc, Reset);
@@ -504,6 +508,7 @@ int d3d_frame(void) {
   COM(d3d_cmd_list, IASetPrimitiveTopology, D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
   COM(d3d_cmd_list, DrawInstanced, 3, 1, 0, 0);
 
+  // COM(d3d_cmd_list, SetGraphicsRootSignature, d3d_root_sign_mui);
   glu_ui((mui_api_t[]) {{
     .sw      = SCR_W,
     .sh      = SCR_H,
