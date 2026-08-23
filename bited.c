@@ -14,8 +14,8 @@
 #pragma comment(lib, "dxgi.lib")
 #pragma comment(lib, "user32.lib")
 
-#define SCR_W 800
-#define SCR_H 600
+#define SCR_W (128*8)
+#define SCR_H (32*8)
 
 #define BUFFER_COUNT 2
 
