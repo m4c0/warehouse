@@ -12,9 +12,12 @@ static int pch() {
 }
 
 static int link_exe() {
-  RUN("clang", "-Wall",
-    "-o", APP".app/Contents/MacOS/main", 
-    OBJS, "sokoban-osx.o");
+  RUN("clang", "-Wall", "-o", APP".app/Contents/MacOS/main", OBJS, "sokoban-osx.o");
+  return 0;
+}
+
+static int shots_exe() {
+  RUN("clang", "-Wall", "-o", APP".app/Contents/MacOS/shots", OBJS, "shots.o");
   return 0;
 }
 
@@ -51,6 +54,9 @@ int main(int argc, char ** argv) {
 
   CM("maped");
   if (maped_exe()) return 1;
+
+  CM("shots");
+  if (shots_exe()) return 1;
 
   RUN("cp", "atlas.img",  APP".app/Contents/Resources/");
   RUN("cp", "levels.txt", APP".app/Contents/Resources/");
