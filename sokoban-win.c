@@ -40,7 +40,9 @@ static ID3D12DescriptorHeap      * d3d_rtv_heap;
 static ID3D12CommandAllocator    * d3d_cmd_alloc;
 static ID3D12GraphicsCommandList * d3d_cmd_list;
 static ID3D12RootSignature       * d3d_root_sign;
+static ID3D12RootSignature       * d3d_root_sign_mui;
 static ID3D12PipelineState       * d3d_pso;
+static ID3D12PipelineState       * d3d_pso_mui;
 
 static ID3D12Resource * d3d_rt[BUFFER_COUNT];
 static ID3D12Resource * d3d_buffer;
@@ -238,6 +240,46 @@ static int d3d_init_root_signature() {
   d3d_release(err);
   return 0;
 }
+static int d3d_init_root_signature_mui() {
+  ID3DBlob * blob;
+  ID3DBlob * err;
+  D3D12_ROOT_SIGNATURE_DESC desc = {
+    .NumParameters      = 2,
+    .pParameters        = (D3D12_ROOT_PARAMETER[]) {{
+      .ParameterType    = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS,
+      .Constants        = (D3D12_ROOT_CONSTANTS) {
+        .Num32BitValues = sizeof(mui_upc_t) / 4,
+      },
+    }, {
+      .ParameterType          = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE,
+      .DescriptorTable        = {
+        .NumDescriptorRanges  = 1,
+        .pDescriptorRanges    = (D3D12_DESCRIPTOR_RANGE[]) {{
+          .RangeType          = D3D12_DESCRIPTOR_RANGE_TYPE_SRV,
+          .NumDescriptors     = 1,
+          .BaseShaderRegister = 1,
+        }},
+      },
+    }},
+    .NumStaticSamplers = 1,
+    .pStaticSamplers   = (D3D12_STATIC_SAMPLER_DESC[]) {{
+      .AddressU        = D3D12_TEXTURE_ADDRESS_MODE_CLAMP,
+      .AddressV        = D3D12_TEXTURE_ADDRESS_MODE_CLAMP,
+      .AddressW        = D3D12_TEXTURE_ADDRESS_MODE_CLAMP,
+      .ShaderRegister  = 1,
+    }},
+  };
+  if (FAILED(D3D12SerializeRootSignature(&desc, D3D_ROOT_SIGNATURE_VERSION_1_0, &blob, &err))) return (d3d_report_err(err), 1);
+  if (err) return (d3d_report_err(err), 1);
+
+  const void * data = COM(blob, GetBufferPointer);
+  size_t        len = COM(blob, GetBufferSize);
+  COM_CHK(d3d_device, CreateRootSignature, 0, data, len, &IID_ID3D12RootSignature, (void **)&d3d_root_sign);
+
+  d3d_release(blob);
+  d3d_release(err);
+  return 0;
+}
 
 static ID3DBlob * d3d_compile(const char * tgt, const char * name) {
   HRSRC r = FindResource(NULL, name, "hlsl");
@@ -262,6 +304,35 @@ static int d3d_init_pso() {
 
   D3D12_GRAPHICS_PIPELINE_STATE_DESC desc = {
     .pRootSignature        = d3d_root_sign,
+    .VS                    = d3d_blob2shader(vs),
+    .PS                    = d3d_blob2shader(ps),
+    .PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE,
+    .SampleMask            = UINT_MAX,
+    .NumRenderTargets      = 1,
+
+    .RasterizerState = (D3D12_RASTERIZER_DESC) {
+      .FillMode = D3D12_FILL_MODE_SOLID,
+      .CullMode = D3D12_CULL_MODE_NONE,
+    },
+    .SampleDesc = (DXGI_SAMPLE_DESC) {
+      .Count = 1,
+    },
+  };
+  desc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
+  desc.BlendState.RenderTarget[0].RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
+  D3D_CHK(d3d_device, CreateGraphicsPipelineState, &desc, &IID_ID3D12PipelineState, (void **)&d3d_pso);
+
+  d3d_release(vs);
+  d3d_release(ps);
+  return 0;
+}
+static int d3d_init_pso_mui() {
+  ID3DBlob * vs = d3d_compile("vs_5_0", "mui-vlk.vert");
+  ID3DBlob * ps = d3d_compile("ps_5_0", "mui-vlk.frag");
+  if (!vs || !ps) return 1;
+
+  D3D12_GRAPHICS_PIPELINE_STATE_DESC desc = {
+    .pRootSignature        = d3d_root_sign_mui,
     .VS                    = d3d_blob2shader(vs),
     .PS                    = d3d_blob2shader(ps),
     .PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE,
@@ -390,6 +461,9 @@ int d3d_init(HWND hwnd) {
   if (d3d_init_pso())            return 1;
   if (d3d_init_cmdlist())        return 1;
 
+  if (d3d_init_root_signature_mui()) return 1;
+  if (d3d_init_pso_mui())            return 1;
+
   if (d3d_init_txt_heap()) return 1;
   if (d3d_init_txt())      return 1;
 
@@ -430,7 +504,9 @@ void d3d_deinit(void) {
   d3d_release(d3d_txt);
   d3d_release(d3d_buffer);
   d3d_release(d3d_cmd_list);
+  d3d_release(d3d_pso_mui);
   d3d_release(d3d_pso);
+  d3d_release(d3d_root_sign_mui);
   d3d_release(d3d_root_sign);
   d3d_release(d3d_cmd_alloc);
   d3d_release(d3d_rtv_heap);
@@ -455,8 +531,8 @@ static void d3d_cmd_transition_barrier(ID3D12Resource * res, D3D12_RESOURCE_STAT
 }
 
 static void d3d_mui_draw(void * ptr, const mui_upc_t * pc) {
-  //COM(d3d_cmd_list, SetGraphicsRoot32BitConstants, 1, sizeof(mui_upc_t) / 4, pc, 0);
-  //COM(d3d_cmd_list, DrawInstanced, 4, 1, 0, 0);
+  COM(d3d_cmd_list, SetGraphicsRoot32BitConstants, 1, sizeof(mui_upc_t) / 4, pc, 0);
+  COM(d3d_cmd_list, DrawInstanced, 4, 1, 0, 0);
 }
 static void d3d_mui_scissor(void * ptr, unsigned x, unsigned y, unsigned w, unsigned h) {
   D3D12_RECT sc = { x, y, w, h };
@@ -508,7 +584,8 @@ int d3d_frame(void) {
   COM(d3d_cmd_list, IASetPrimitiveTopology, D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
   COM(d3d_cmd_list, DrawInstanced, 3, 1, 0, 0);
 
-  // COM(d3d_cmd_list, SetGraphicsRootSignature, d3d_root_sign_mui);
+  COM(d3d_cmd_list, SetGraphicsRootSignature, d3d_root_sign_mui);
+  COM(d3d_cmd_list, SetGraphicsRootDescriptorTable, 1, d3d_get_gpu_desc(d3d_txt_heap));
   glu_ui((mui_api_t[]) {{
     .sw      = SCR_W,
     .sh      = SCR_H,
