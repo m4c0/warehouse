@@ -17,7 +17,7 @@ static int bited_exe() {
   return 0;
 }
 static int maped_exe() {
-  RUN("clang", "-Wall", OPT, "-o", "maped.exe", "maped.o", OBJS);
+  RUN("clang", "-Wall", OPT, "-o", "maped.exe", "maped.o", "lvl.o");
   return 0;
 }
 static int link_exe() {
