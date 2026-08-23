@@ -195,19 +195,22 @@ static int d3d_init_root_signature() {
   ID3DBlob * blob;
   ID3DBlob * err;
   D3D12_ROOT_SIGNATURE_DESC desc = {
-    .NumParameters      = 2,
+    .NumParameters      = 3,
     .pParameters        = (D3D12_ROOT_PARAMETER[]) {{
+      .ParameterType    = D3D12_ROOT_PARAMETER_TYPE_SRV,
+    }, {
       .ParameterType    = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS,
       .Constants        = (D3D12_ROOT_CONSTANTS) {
         .Num32BitValues = sizeof(mpd_upc_t) / 4,
       },
     }, {
-      .ParameterType         = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE,
-      .DescriptorTable       = {
-        .NumDescriptorRanges = 1,
-        .pDescriptorRanges   = (D3D12_DESCRIPTOR_RANGE[]) {{
-          .RangeType         = D3D12_DESCRIPTOR_RANGE_TYPE_SRV,
-          .NumDescriptors    = 2,
+      .ParameterType          = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE,
+      .DescriptorTable        = {
+        .NumDescriptorRanges  = 1,
+        .pDescriptorRanges    = (D3D12_DESCRIPTOR_RANGE[]) {{
+          .RangeType          = D3D12_DESCRIPTOR_RANGE_TYPE_SRV,
+          .NumDescriptors     = 1,
+          .BaseShaderRegister = 1,
         }},
       },
     }},
@@ -462,8 +465,8 @@ int d3d_frame(void) {
   COM(d3d_cmd_list, SetDescriptorHeaps, 1, (ID3D12DescriptorHeap *[]) { d3d_txt_heap });
 
   COM(d3d_cmd_list, SetGraphicsRootSignature, d3d_root_sign);
-  COM(d3d_cmd_list, SetGraphicsRoot32BitConstants, 0, sizeof(mpd_upc_t) / 4, &mpd_pc, 0);
-  COM(d3d_cmd_list, SetGraphicsRootDescriptorTable, 1, d3d_get_gpu_desc(d3d_txt_heap));
+  COM(d3d_cmd_list, SetGraphicsRoot32BitConstants, 1, sizeof(mpd_upc_t) / 4, &mpd_pc, 0);
+  COM(d3d_cmd_list, SetGraphicsRootDescriptorTable, 2, d3d_get_gpu_desc(d3d_txt_heap));
 
   D3D12_VIEWPORT vp = { 0, 0, SCR_W, SCR_H };
   COM(d3d_cmd_list, RSSetViewports, 1, &vp);
