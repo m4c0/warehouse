@@ -44,7 +44,6 @@ static ID3D12Resource       * d3d_txt;
 static ID3D12Resource       * d3d_txt_upload;
 static unsigned               d3d_txt_pitch;
 static ID3D12DescriptorHeap * d3d_txt_heap;
-static ID3D12DescriptorHeap * d3d_smp_heap;
 
 static ID3D12Fence * d3d_fence;
 static unsigned      d3d_frame_idx;
@@ -196,7 +195,7 @@ static int d3d_init_root_signature() {
   ID3DBlob * blob;
   ID3DBlob * err;
   D3D12_ROOT_SIGNATURE_DESC desc = {
-    .NumParameters      = 3,
+    .NumParameters      = 2,
     .pParameters        = (D3D12_ROOT_PARAMETER[]) {{
       .ParameterType    = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS,
       .Constants        = (D3D12_ROOT_CONSTANTS) {
@@ -208,18 +207,16 @@ static int d3d_init_root_signature() {
         .NumDescriptorRanges = 1,
         .pDescriptorRanges   = (D3D12_DESCRIPTOR_RANGE[]) {{
           .RangeType         = D3D12_DESCRIPTOR_RANGE_TYPE_SRV,
-          .NumDescriptors    = 1,
+          .NumDescriptors    = 2,
         }},
       },
-    }, {
-      .ParameterType         = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE,
-      .DescriptorTable       = {
-        .NumDescriptorRanges = 1,
-        .pDescriptorRanges   = (D3D12_DESCRIPTOR_RANGE[]) {{
-          .RangeType         = D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER,
-          .NumDescriptors    = 1,
-        }},
-      },
+    }},
+    .NumStaticSamplers = 1,
+    .pStaticSamplers   = (D3D12_STATIC_SAMPLER_DESC[]) {{
+      .AddressU        = D3D12_TEXTURE_ADDRESS_MODE_CLAMP,
+      .AddressV        = D3D12_TEXTURE_ADDRESS_MODE_CLAMP,
+      .AddressW        = D3D12_TEXTURE_ADDRESS_MODE_CLAMP,
+      .ShaderRegister  = 1,
     }},
   };
   if (FAILED(D3D12SerializeRootSignature(&desc, D3D_ROOT_SIGNATURE_VERSION_1_0, &blob, &err))) return (d3d_report_err(err), 1);
@@ -269,8 +266,8 @@ static D3D12_SHADER_BYTECODE d3d_blob2shader(ID3DBlob * blob) {
   return (D3D12_SHADER_BYTECODE){ COM(blob, GetBufferPointer), COM(blob, GetBufferSize) };
 }
 static int d3d_init_pso() {
-  ID3DBlob * vs = d3d_compile("vs_5_0", "bited.vert");
-  ID3DBlob * ps = d3d_compile("ps_5_0", "bited.frag");
+  ID3DBlob * vs = d3d_compile("vs_5_0", "sokoban.vert");
+  ID3DBlob * ps = d3d_compile("ps_5_0", "sokoban.frag");
   if (!vs || !ps) return 1;
 
   D3D12_GRAPHICS_PIPELINE_STATE_DESC desc = {
@@ -291,7 +288,7 @@ static int d3d_init_pso() {
   };
   desc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
   desc.BlendState.RenderTarget[0].RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
-  COM_CHK(d3d_device, CreateGraphicsPipelineState, &desc, &IID_ID3D12PipelineState, (void **)&d3d_pso);
+  D3D_CHK(d3d_device, CreateGraphicsPipelineState, &desc, &IID_ID3D12PipelineState, (void **)&d3d_pso);
 
   d3d_release(vs);
   d3d_release(ps);
@@ -360,15 +357,6 @@ static int d3d_init_txt(void) {
 
   return 0;
 }
-static int d3d_init_smp_heap(void) {
-  D3D12_DESCRIPTOR_HEAP_DESC desc = {
-    .Type           = D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER,
-    .NumDescriptors = 1,
-    .Flags          = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE,
-  };
-  COM_CHK(d3d_device, CreateDescriptorHeap, &desc, &IID_ID3D12DescriptorHeap, (void **)&d3d_smp_heap);
-  return 0;
-}
 
 int d3d_init(HWND hwnd) {
   if (FAILED(CreateDXGIFactory2(d3d_debug(), &IID_IDXGIFactory4, (void **)&d3d_factory))) return 1;
@@ -388,7 +376,6 @@ int d3d_init(HWND hwnd) {
   if (d3d_init_pso())            return 1;
   if (d3d_init_cmdlist())        return 1;
 
-  if (d3d_init_smp_heap()) return 1;
   if (d3d_init_txt_heap()) return 1;
   if (d3d_init_txt())      return 1;
 
@@ -472,12 +459,11 @@ int d3d_frame(void) {
   COM(d3d_cmd_list, CopyTextureRegion, &dst, 0, 0, 0, &src, NULL);
   d3d_cmd_transition_barrier(d3d_txt, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 
-  COM(d3d_cmd_list, SetDescriptorHeaps, 2, (ID3D12DescriptorHeap *[]) { d3d_txt_heap, d3d_smp_heap });
+  COM(d3d_cmd_list, SetDescriptorHeaps, 1, (ID3D12DescriptorHeap *[]) { d3d_txt_heap });
 
   COM(d3d_cmd_list, SetGraphicsRootSignature, d3d_root_sign);
   COM(d3d_cmd_list, SetGraphicsRoot32BitConstants, 0, sizeof(mpd_upc_t) / 4, &mpd_pc, 0);
   COM(d3d_cmd_list, SetGraphicsRootDescriptorTable, 1, d3d_get_gpu_desc(d3d_txt_heap));
-  COM(d3d_cmd_list, SetGraphicsRootDescriptorTable, 2, d3d_get_gpu_desc(d3d_smp_heap));
 
   D3D12_VIEWPORT vp = { 0, 0, SCR_W, SCR_H };
   COM(d3d_cmd_list, RSSetViewports, 1, &vp);
