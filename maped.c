@@ -361,6 +361,30 @@ static int d3d_init_txt(void) {
   return 0;
 }
 
+static int d3d_init_buffer(void) {
+  int size = LVL_SZ;
+
+  D3D12_HEAP_PROPERTIES heap = {
+    .Type = D3D12_HEAP_TYPE_UPLOAD,
+  };
+  D3D12_RESOURCE_DESC res = {
+    .Dimension        = D3D12_RESOURCE_DIMENSION_BUFFER,
+    .Width            = size,
+    .Height           = 1,
+    .DepthOrArraySize = 1,
+    .MipLevels        = 1,
+    .Layout           = D3D12_TEXTURE_LAYOUT_ROW_MAJOR,
+    .SampleDesc       = (DXGI_SAMPLE_DESC) {
+      .Count          = 1,
+    },
+  };
+  COM_CHK(d3d_device, CreateCommittedResource,
+      &heap, D3D12_HEAP_FLAG_NONE, &res, D3D12_RESOURCE_STATE_GENERIC_READ, NULL, 
+      &IID_ID3D12Resource, (void **)&d3d_buffer);
+
+  return 0;
+}
+
 int d3d_init(HWND hwnd) {
   if (FAILED(CreateDXGIFactory2(d3d_debug(), &IID_IDXGIFactory4, (void **)&d3d_factory))) return 1;
 
@@ -381,6 +405,8 @@ int d3d_init(HWND hwnd) {
 
   if (d3d_init_txt_heap()) return 1;
   if (d3d_init_txt())      return 1;
+
+  if (d3d_init_buffer()) return 1;
 
   COM_CHK(d3d_device, CreateFence, 0, D3D12_FENCE_FLAG_NONE, &IID_ID3D12Fence, (void **)&d3d_fence);
   d3d_frame_idx   = COM(d3d_swc, GetCurrentBackBufferIndex);
@@ -465,6 +491,7 @@ int d3d_frame(void) {
   COM(d3d_cmd_list, SetDescriptorHeaps, 1, (ID3D12DescriptorHeap *[]) { d3d_txt_heap });
 
   COM(d3d_cmd_list, SetGraphicsRootSignature, d3d_root_sign);
+  COM(d3d_cmd_list, SetGraphicsRootShaderResourceView, 0, COM(d3d_buffer, GetGPUVirtualAddress));
   COM(d3d_cmd_list, SetGraphicsRoot32BitConstants, 1, sizeof(mpd_upc_t) / 4, &mpd_pc, 0);
   COM(d3d_cmd_list, SetGraphicsRootDescriptorTable, 2, d3d_get_gpu_desc(d3d_txt_heap));
 
@@ -496,7 +523,12 @@ int d3d_frame(void) {
   return 0;
 }
 
-void mpd_update_map() {}
+void mpd_update_map() {
+  char * map;
+  COM(d3d_buffer, Map, 0, NULL, (void **)&map);
+  memcpy(map, mpd_ptr, LVL_SZ);
+  COM(d3d_buffer, Unmap, 0, NULL);
+}
 
 static LRESULT window_proc(HWND hwnd, UINT msg, WPARAM w_param, LPARAM l_param) {
   switch (msg) {
