@@ -573,6 +573,11 @@ static LRESULT window_proc(HWND hwnd, UINT msg, WPARAM w_param, LPARAM l_param) 
       return 0;
 
     case WM_PAINT:
+      unsigned * map;
+      COM(d3d_buffer, Map, 0, NULL, (void **)&map);
+      glu_load(map);
+      COM(d3d_buffer, Unmap, 0, NULL);
+
       glu_frame();
       if (d3d_frame()) PostQuitMessage(1);
       return 0;
