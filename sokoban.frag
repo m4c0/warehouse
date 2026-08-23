@@ -203,14 +203,14 @@ vec3 cursor(vec3 c) {
 }
 
 vec4 atlas(vec2 p, vec2 sz, vec2 uv0, vec2 uv1) {
-  const vec2 uv_sz = vec2(16, 4);
+  const vec2 uv_sz = vec2(128, 32);
 
   // TODO: find where it got misaligned
   vec2 pp = g2l(p);
   vec2 uv = (pp + sz * 0.5) / sz;
   float d = sd_box(pp, sz * 0.5);
 
-  uv = mix(uv0, uv1, uv) / uv_sz;
+  uv = floor(8 * mix(uv0, uv1, uv)) / uv_sz;
   return mix(texture(u_atlas, uv).rrrr, vec4(0), step(0, d));
 }
 vec3 atlas_d(vec2 p, vec2 sz, vec2 uv0, vec2 uv1, vec3 f) {
