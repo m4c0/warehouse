@@ -453,6 +453,11 @@ static void d3d_cmd_transition_barrier(ID3D12Resource * res, D3D12_RESOURCE_STAT
   };
   COM(d3d_cmd_list, ResourceBarrier, 1, &b);
 }
+
+static void d3d_mui_draw() {
+}
+static void d3d_mui_scissor() {
+}
 int d3d_frame(void) {
   COM_CHK(d3d_cmd_alloc, Reset);
   COM_CHK(d3d_cmd_list, Reset, d3d_cmd_alloc, d3d_pso);
@@ -498,6 +503,14 @@ int d3d_frame(void) {
   COM(d3d_cmd_list, ClearRenderTargetView, rtv, colour, 0, NULL);
   COM(d3d_cmd_list, IASetPrimitiveTopology, D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
   COM(d3d_cmd_list, DrawInstanced, 3, 1, 0, 0);
+
+  glu_ui((mui_api_t[]) {{
+    .sw      = SCR_W,
+    .sh      = SCR_H,
+    .ptr     = NULL,
+    .draw    = d3d_mui_draw,
+    .scissor = d3d_mui_scissor,
+  }});
 
   d3d_cmd_transition_barrier(d3d_rt[d3d_frame_idx], D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
 
