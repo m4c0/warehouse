@@ -6,7 +6,7 @@ typedef struct btd_upc {
 } btd_upc_t;
 static btd_upc_t btd_pc;
 
-static uint8_t * btd_atlas;
+static uint8_t btd_atlas[128 * 32];
 
 void btd_replace_atlas();
 

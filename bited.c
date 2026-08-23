@@ -42,6 +42,7 @@ static ID3D12Resource * d3d_buffer;
 
 static ID3D12Resource       * d3d_txt;
 static ID3D12Resource       * d3d_txt_upload;
+static unsigned               d3d_txt_pitch;
 static ID3D12DescriptorHeap * d3d_txt_heap;
 static ID3D12DescriptorHeap * d3d_smp_heap;
 
@@ -325,7 +326,7 @@ static int d3d_init_txt(void) {
       &IID_ID3D12Resource, (void **)&d3d_txt);
 
   D3D12_SHADER_RESOURCE_VIEW_DESC srv_desc = {
-    .Format                  = DXGI_FORMAT_R8G8B8A8_UNORM,
+    .Format                  = DXGI_FORMAT_R8_UNORM,
     .ViewDimension           = D3D12_SRV_DIMENSION_TEXTURE2D,
     .Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING,
     .Texture2D               = {
@@ -334,8 +335,10 @@ static int d3d_init_txt(void) {
   };
   COM(d3d_device, CreateShaderResourceView, d3d_txt, &srv_desc, d3d_get_cpu_desc(d3d_txt_heap));
 
+  D3D12_PLACED_SUBRESOURCE_FOOTPRINT layout;
   uint64_t sz;
-  COM(d3d_device, GetCopyableFootprints, &res, 0, 1, 0, NULL, NULL, NULL, &sz);
+  COM(d3d_device, GetCopyableFootprints, &res, 0, 1, 0, &layout, NULL, NULL, &sz);
+  d3d_txt_pitch = layout.Footprint.RowPitch;
 
   heap = (D3D12_HEAP_PROPERTIES) {
     .Type = D3D12_HEAP_TYPE_UPLOAD,
@@ -354,8 +357,6 @@ static int d3d_init_txt(void) {
   D3D_CHK(d3d_device, CreateCommittedResource,
       &heap, D3D12_HEAP_FLAG_NONE, &res, D3D12_RESOURCE_STATE_GENERIC_READ, NULL, 
       &IID_ID3D12Resource, (void **)&d3d_txt_upload);
-
-  COM_CHK(d3d_txt_upload, Map, 0, NULL, (void **)&btd_atlas);
 
   return 0;
 }
@@ -462,7 +463,7 @@ int d3d_frame(void) {
         .Width    = 128,
         .Height   = 32,
         .Depth    = 1,
-        .RowPitch = 128,
+        .RowPitch = d3d_txt_pitch,
       },
     },
   };
@@ -493,7 +494,7 @@ int d3d_frame(void) {
 
   d3d_cmd_transition_barrier(d3d_rt[d3d_frame_idx], D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
 
-  COM_CHK(d3d_cmd_list, Close);
+  D3D_CHK(d3d_cmd_list, Close);
 
   ID3D12CommandList * cmd_list = (ID3D12CommandList *)d3d_cmd_list;
   COM(d3d_queue, ExecuteCommandLists, 1, &cmd_list);
@@ -504,7 +505,18 @@ int d3d_frame(void) {
   return 0;
 }
 
-void btd_replace_atlas() {}
+void btd_replace_atlas() {
+  char * map;
+  if (!COM(d3d_txt_upload, Map, 0, NULL, (void **)&map)) return;
+
+  for (int y = 0; y < 32; y++) {
+    for (int x = 0; x < 32; x++) {
+      map[y * d3d_txt_pitch + x] = btd_atlas[y * 128 + x];
+    }
+  }
+
+  COM(d3d_txt_upload, Unmap, 0, NULL);
+}
 
 static LRESULT window_proc(HWND hwnd, UINT msg, WPARAM w_param, LPARAM l_param) {
   switch (msg) {
