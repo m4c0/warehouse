@@ -507,7 +507,7 @@ int d3d_frame(void) {
 
 void btd_replace_atlas() {
   char * map;
-  if (!COM(d3d_txt_upload, Map, 0, NULL, (void **)&map)) return;
+  if (!COM_OK(d3d_txt_upload, Map, 0, NULL, (void **)&map)) return;
 
   for (int y = 0; y < 32; y++) {
     for (int x = 0; x < 128; x++) {
@@ -582,6 +582,7 @@ int WinMain(HINSTANCE h_instance, HINSTANCE h_prev, LPSTR cmd_line, int cmd_show
   }
 
   if (d3d_init(hwnd)) return 1;
+  btd_load();
 
   ShowWindow(hwnd, cmd_show);
   UpdateWindow(hwnd);
