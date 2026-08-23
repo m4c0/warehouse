@@ -29,6 +29,7 @@
 #define COM(obj, method, ...) (obj)->lpVtbl->method(obj, __VA_ARGS__)
 #define COM_OK(obj, method, ...) SUCCEEDED(COM(obj, method, __VA_ARGS__))
 #define COM_CHK(obj, method, ...) if (FAILED(COM(obj, method, __VA_ARGS__))) return 1
+#define D3D_CHK(obj, method, ...) if (FAILED(COM(obj, method, __VA_ARGS__))) return d3d_output_errors()
 
 static IDXGIFactory4             * d3d_factory;
 static IDXGIAdapter1             * d3d_adapter;
@@ -69,6 +70,26 @@ static int d3d_debug() {
   }
 #endif
   return 0;
+}
+
+static int d3d_output_errors() {
+#ifdef DEBUG_INTERFACE
+  ID3D12InfoQueue * infoq;
+  COM_CHK(d3d_device, QueryInterface, &IID_ID3D12InfoQueue, (void **)&infoq);
+  int n = COM(infoq, GetNumStoredMessages);
+  for (int i = 0; i < n; i++) {
+    size_t sz = 0;
+    COM(infoq, GetMessage, i, NULL, &sz);
+
+    D3D12_MESSAGE * msg = malloc(sz); // Trusting MS sends the right size
+    COM_CHK(infoq, GetMessage, i, msg, &sz);
+    // TODO: MessageBox
+    OutputDebugString(msg->pDescription);
+    OutputDebugString("\n");
+    free(msg);
+  }
+#endif
+  return 1;
 }
 
 static inline int d3d_enum_adapter_by_gpu(IDXGIFactory6 * f6, unsigned i) {
@@ -167,7 +188,7 @@ static int d3d_init_root_signature() {
   ID3DBlob * blob;
   ID3DBlob * err;
   D3D12_ROOT_SIGNATURE_DESC desc = {
-    .NumParameters      = 2,
+    .NumParameters      = 3,
     .pParameters        = (D3D12_ROOT_PARAMETER[]) {{
       .ParameterType    = D3D12_ROOT_PARAMETER_TYPE_SRV,
     }, {
@@ -175,6 +196,23 @@ static int d3d_init_root_signature() {
       .Constants        = (D3D12_ROOT_CONSTANTS) {
         .Num32BitValues = sizeof(glu_upc_t) / 4,
       },
+    }, {
+      .ParameterType          = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE,
+      .DescriptorTable        = {
+        .NumDescriptorRanges  = 1,
+        .pDescriptorRanges    = (D3D12_DESCRIPTOR_RANGE[]) {{
+          .RangeType          = D3D12_DESCRIPTOR_RANGE_TYPE_SRV,
+          .NumDescriptors     = 1,
+          .BaseShaderRegister = 1,
+        }},
+      },
+    }},
+    .NumStaticSamplers = 1,
+    .pStaticSamplers   = (D3D12_STATIC_SAMPLER_DESC[]) {{
+      .AddressU        = D3D12_TEXTURE_ADDRESS_MODE_CLAMP,
+      .AddressV        = D3D12_TEXTURE_ADDRESS_MODE_CLAMP,
+      .AddressW        = D3D12_TEXTURE_ADDRESS_MODE_CLAMP,
+      .ShaderRegister  = 1,
     }},
   };
   if (FAILED(D3D12SerializeRootSignature(&desc, D3D_ROOT_SIGNATURE_VERSION_1_0, &blob, &err))) return (d3d_report_err(err), 1);
@@ -206,8 +244,8 @@ static D3D12_SHADER_BYTECODE d3d_blob2shader(ID3DBlob * blob) {
   return (D3D12_SHADER_BYTECODE){ COM(blob, GetBufferPointer), COM(blob, GetBufferSize) };
 }
 static int d3d_init_pso() {
-  ID3DBlob * vs = d3d_compile("vs_5_0", "shader.vert");
-  ID3DBlob * ps = d3d_compile("ps_5_0", "shader.frag");
+  ID3DBlob * vs = d3d_compile("vs_5_0", "sokoban.vert");
+  ID3DBlob * ps = d3d_compile("ps_5_0", "sokoban.frag");
   if (!vs || !ps) return 1;
 
   D3D12_GRAPHICS_PIPELINE_STATE_DESC desc = {
@@ -228,7 +266,7 @@ static int d3d_init_pso() {
   };
   desc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
   desc.BlendState.RenderTarget[0].RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
-  COM_CHK(d3d_device, CreateGraphicsPipelineState, &desc, &IID_ID3D12PipelineState, (void **)&d3d_pso);
+  D3D_CHK(d3d_device, CreateGraphicsPipelineState, &desc, &IID_ID3D12PipelineState, (void **)&d3d_pso);
 
   d3d_release(vs);
   d3d_release(ps);

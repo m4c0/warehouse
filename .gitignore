@@ -8,6 +8,7 @@ export
 *.hlsl
 *.ico
 *.pch
+*.pdb
 *.plist
 *.o
 *.res

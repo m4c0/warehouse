@@ -5,6 +5,7 @@ mui-vlk.vert hlsl "mui-vlk.vert.hlsl"
 sokoban.frag hlsl "sokoban.frag.hlsl"
 sokoban.vert hlsl "sokoban.vert.hlsl"
 
+atlas  img "atlas.img"
 levels txt "levels.txt"
 
 STRINGTABLE
