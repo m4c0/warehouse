@@ -526,6 +526,24 @@ static LRESULT window_proc(HWND hwnd, UINT msg, WPARAM w_param, LPARAM l_param) 
   return DefWindowProc(hwnd, msg, w_param, l_param);
 }
 
+static int mpd_replace_atlas(void) {
+  unsigned sz;
+  char * atlas = slurp("atlas.img", &sz);
+
+  char * map;
+  COM_CHK(d3d_txt_upload, Map, 0, NULL, (void **)&map);
+
+  for (int y = 0; y < 32; y++) {
+    for (int x = 0; x < 128; x++) {
+      map[y * d3d_txt_pitch + x] = atlas[y * 128 + x];
+    }
+  }
+
+  COM(d3d_txt_upload, Unmap, 0, NULL);
+  return 0;
+}
+
+
 int WinMain(HINSTANCE h_instance, HINSTANCE h_prev, LPSTR cmd_line, int cmd_show) {
   HICON h_icon = LoadIcon(h_instance, "IDI_APPICON");
 
@@ -566,6 +584,7 @@ int WinMain(HINSTANCE h_instance, HINSTANCE h_prev, LPSTR cmd_line, int cmd_show
   const char * data = slurp("levels.txt", &sz);
   lvl_init(data, sz);
   mpd_load_map(0);
+  if (mpd_replace_atlas()) return 1;
 
   ShowWindow(hwnd, cmd_show);
   UpdateWindow(hwnd);
