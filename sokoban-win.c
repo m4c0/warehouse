@@ -587,8 +587,6 @@ int d3d_frame(void) {
   COM(d3d_cmd_list, SetGraphicsRootSignature, d3d_root_sign_mui);
   COM(d3d_cmd_list, SetGraphicsRootDescriptorTable, 1, d3d_get_gpu_desc(d3d_txt_heap));
   glu_ui((mui_api_t[]) {{
-    .sw      = SCR_W,
-    .sh      = SCR_H,
     .ptr     = NULL,
     .draw    = d3d_mui_draw,
     .scissor = d3d_mui_scissor,

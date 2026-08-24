@@ -136,8 +136,6 @@ static void mtl_mui_scissor(void * ptr, unsigned x, unsigned y, unsigned w, unsi
   [enc setFragmentTexture:self.txt atIndex:0];
   [enc setFragmentSamplerState:self.smp atIndex:0];
   glu_ui((mui_api_t[]) {{
-    .sw      = size.width,
-    .sh      = size.height,
     .ptr     = enc,
     .draw    = mtl_mui_draw,
     .scissor = mtl_mui_scissor,
@@ -165,7 +163,7 @@ static void mtl_mui_scissor(void * ptr, unsigned x, unsigned y, unsigned w, unsi
   return d;
 }
 - (void)mtkView:(MTKView *)view drawableSizeWillChange:(CGSize)size {
-  if (self.ready) [self.stuff resize:size];
+  if (self.ready) [self.stuff resize:view.frame.size];
 }
 - (void)drawInMTKView:(MTKView *)view {
   if (!self.ready) {

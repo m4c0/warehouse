@@ -33,7 +33,12 @@ typedef struct glu_init_s {
   int scr_w, scr_h;
 } glu_init_t;
 
+static unsigned glu_sw;
+static unsigned glu_sh;
+
 void glu_resize(unsigned w, unsigned h) {
+  glu_sw = w;
+  glu_sh = h;
   glu_pc.aspect = (float)w / (float)h;
 }
 void glu_init(const glu_init_t * t) {
@@ -71,7 +76,10 @@ void glu_frame(void) {
 }
 
 void glu_ui(const mui_api_t * t) {
-  mui_run(t);
+  mui_api_t tt = *t;
+  tt.sw = glu_sw;
+  tt.sh = glu_sh;
+  mui_run(&tt);
 }
 
 void glu_move(int dx, int dy) {
