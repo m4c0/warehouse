@@ -1,6 +1,5 @@
 #ifndef MUI_H
 #define MUI_H
-#include "microui.h"
 
 typedef struct mui_upc_s {
   float rect[4];
@@ -32,6 +31,8 @@ void mui_mouse_up(int x, int y);
 #include "lvl.h"
 #include "sav.h"
 #include "sfx.h"
+
+#include "microui.h"
 
 mu_Context mui_ctx = {0};
 int mui_overlay = 0;
