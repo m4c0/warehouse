@@ -102,9 +102,6 @@ static void mui_vspace(int n) {
   mu_layout_next(&mui_ctx);
 }
 
-static float mui_lvl = 1;
-static int mui_first_open_ever = 1;
-
 static float cuv(char c, char base) {
   float u = 0;
   for (char cc = base; cc < c; cc++) u += mui_font_width(cc) + 1;
@@ -154,10 +151,25 @@ static int mui_draw_icon(const mui_api_t * t, float rect[4], float dim, float id
 
   return hover && mui_mu && (mui_mid == id);
 }
+
+static float mui_lvl = 1;
+
+static int mui_st_options = 0;
 static void mui_guarded_run(const mui_api_t * t) {
-  int toggle_options = 0;
   if (mui_draw_icon(t, (float[4]) { t->sw - 48 - 12, 12, 48, 48 }, 0.8, 0xEE00)) {
-    toggle_options = 1;
+    mui_st_options = !mui_st_options;
+  }
+  if (!mui_st_options) return;
+
+  int wx = (t->sw - 300) / 2;
+  int wy = (t->sh - 200) / 2;
+  int hover_out =
+    mui_mx < wx || mui_mx > wx + 300 ||
+    mui_my < wy || mui_my > wy + 200;
+  if (hover_out && mui_md) mui_mid = 1;
+  if (hover_out && mui_mu && mui_mid == 1) {
+      mui_st_options = 0;
+      return;
   }
 
   mu_begin(&mui_ctx);
@@ -165,23 +177,9 @@ static void mui_guarded_run(const mui_api_t * t) {
   mui_ctx.style->padding = 12;
   mui_ctx.style->spacing = 8;
 
-  if (toggle_options) {
-    mu_Container * cnt = mu_get_container(&mui_ctx, "!options");
-    if (mui_first_open_ever) {
-      // mu_get_container always "open" the container when it creates and we
-      // don't have a clear way of detecting this.
-      mui_first_open_ever = 0;
-    } else {
-      cnt->open = 1 - cnt->open;
-    }
-    mui_lvl = lvl_current + 1;
-    mui_overlay = cnt->open;
-    gme_enabled = !cnt->open;
-  }
+  mui_lvl = lvl_current + 1;
 
-  int wx = (t->sw - 300) / 2;
-  int wy = (t->sh - 200) / 2;
-  int opt = MU_OPT_NOCLOSE | MU_OPT_NOTITLE | MU_OPT_CLOSED;
+  int opt = MU_OPT_NOCLOSE | MU_OPT_NOTITLE;
   if (mu_begin_window_ex(&mui_ctx, "!options", mu_rect(wx, wy, 300, 200), opt)) {
     mui_vspace(6);
 
@@ -287,7 +285,11 @@ static void mui_guarded_run(const mui_api_t * t) {
 void mui_run(const mui_api_t * t) {
   mui_guarded_run(t);
 
+  if (mui_mu) mui_mid = 0;
   mui_md = mui_mu = 0;
+
+  mui_overlay = mui_st_options;
+  gme_enabled = !mui_st_options;
 }
 
 #endif
