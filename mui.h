@@ -19,9 +19,6 @@ extern int mui_overlay;
 void mui_init();
 void mui_run(const mui_api_t * t);
 
-int mui_font_width(char c);
-int mui_font_height();
-
 void mui_mouse_down(int x, int y);
 void mui_mouse_move(int x, int y);
 void mui_mouse_up(int x, int y);
@@ -42,14 +39,14 @@ static int mui_md;
 static int mui_mu;
 static int mui_mid;
 
-int mui_font_width(char c) {
+static int mui_font_width(char c) {
   if ((c | 0x20) == 'i') return 1;
   if ((c | 0x20) == 'm') return 5;
   if ((c | 0x20) == 'n') return 4;
   return 3;
 }
 
-int mui_font_height() {
+static int mui_font_height() {
   return 5;
 }
 
@@ -90,18 +87,6 @@ void mui_mouse_up(int x, int y) {
   mu_input_mouseup(&mui_ctx, x, y, 1);
 }
 
-static void mui_label(const char * txt) {
-  int pad = mui_ctx.style->padding;
-
-  mui_ctx.style->padding = 0;
-  mu_label(&mui_ctx, txt);
-  mui_ctx.style->padding = pad;
-}
-static void mui_vspace(int n) {
-  mu_layout_row(&mui_ctx, 1, (int[]) { -1 }, n);
-  mu_layout_next(&mui_ctx);
-}
-
 static float cuv(char c, char base) {
   float u = 0;
   for (char cc = base; cc < c; cc++) u += mui_font_width(cc) + 1;
@@ -134,8 +119,8 @@ static void uv(float * uv, char c) {
 
 static int mui_strlen(const char * str) {
   int len = 0;
-  for (const char * c = str; *c; c++) len += mui_font_width(*c) * 3;
-  return len;
+  for (const char * c = str; *c; c++) len += mui_font_width(*c) * 3 + 2;
+  return len - 2;
 }
 
 static int mui_hover(float rect[4]) {
@@ -208,7 +193,7 @@ static int mui_draw_btn(const mui_api_t * t, int id, const char * str, float rec
 
   mui_upc_t pc = {
     .rect   = { rect[0] - 2, rect[1] - 2, rect[2] + 4, rect[3] + 4 },
-    .colour = { 0.04, 0.12, 0.08, 0xFFFF },
+    .colour = { dim * 0.08, dim * 0.24, dim * 0.16, 0xFFFF },
     .extent = { t->sw, t->sh },
   };
   t->draw(t->ptr, &pc);
@@ -225,7 +210,29 @@ static int mui_draw_btn(const mui_api_t * t, int id, const char * str, float rec
   return hover && mui_mu && (mui_mid == id);
 }
 
-static float mui_lvl = 1;
+static int mui_draw_lvl(const mui_api_t * t, float rect[4]) {
+  float dim = 0.8;
+
+  mui_upc_t pc = {
+    .rect   = { rect[0] - 2, rect[1] - 2, rect[2] + 4, rect[3] + 4 },
+    .colour = { dim * 0.27, dim * 0.47, dim * 0.35, 0xFFFF },
+    .extent = { t->sw, t->sh },
+  };
+  t->draw(t->ptr, &pc);
+
+  pc = (mui_upc_t) {
+    .rect   = { rect[0], rect[1], rect[2], rect[3] },
+    .colour = { dim * 0.08, dim * 0.24, dim * 0.16, 0xFFFF },
+    .extent = { t->sw, t->sh },
+  };
+  t->draw(t->ptr, &pc);
+
+  char str[16];
+  snprintf(str, 16, "Level %02d", lvl_current + 1);
+  float w = mui_strlen(str);
+  mui_draw_str(t, str, rect[0] + (rect[2] - w) / 2, rect[1] + (rect[3] - 15) / 2);
+  return 0;
+}
 
 static int mui_st_options = 1;
 static void mui_guarded_run(const mui_api_t * t) {
@@ -244,6 +251,8 @@ static void mui_guarded_run(const mui_api_t * t) {
   float cl = wx + 16;
   float cr = wx + 340 - 16;
   float r1 = wy + 32;
+  float r2 = r1 + 50;
+  float r3 = r2 + 60;
 
   mui_draw_str(t, "Sound", cl, r1);
 
@@ -252,114 +261,19 @@ static void mui_guarded_run(const mui_api_t * t) {
     sfx_toggle();
   }
 
-  mu_begin(&mui_ctx);
-
-  mui_ctx.style->padding = 12;
-  mui_ctx.style->spacing = 8;
-
-  mui_lvl = lvl_current + 1;
-
-  int opt = MU_OPT_NOCLOSE | MU_OPT_NOTITLE | MU_OPT_NOFRAME;
-  if (mu_begin_window_ex(&mui_ctx, "!options", mu_rect(wx, wy, 300, 200), opt)) {
-    mui_vspace(6);
-
-    mu_layout_row(&mui_ctx, 3, (int[]) { -60, -1 }, 32);
-    mui_label("");
-    mui_label("");
-
-    mui_vspace(12);
-
-    mu_layout_row(&mui_ctx, 1, (int[]) { -1 }, 32);
-    if (mu_slider_ex(&mui_ctx, &mui_lvl, 1, sav_data.max_level + 1, 1, "Level %.0f", MU_OPT_ALIGNCENTER)) {
-      gme_level(mui_lvl - 1);
-    }
-
-    mui_vspace(12);
-
-    mu_layout_row(&mui_ctx, 1, (int[]) { -1 }, 32);
-    if (mu_button(&mui_ctx, "Restart level")) {
-      gme_level(lvl_current);
-
-      mu_Container * cnt = mu_get_current_container(&mui_ctx);
-      cnt->open = 0;
-      mui_overlay = 0;
-      gme_enabled = 1;
-    }
-
-    mu_end_window(&mui_ctx);
+  if (mui_draw_lvl(t, (float[4]) { cl, r2, cr - cl, 15 + 16 })) {
+    //gme_level(mui_lvl - 1);
   }
 
-  mu_end(&mui_ctx);
-
-  // TODO: batch these into fewer calls
-  mu_Command * cmd = NULL;
-  while (mu_next_command(&mui_ctx, &cmd)) {
-    switch (cmd->type) {
-      case MU_COMMAND_TEXT: {
-        mui_upc_t pc = {
-          .rect   = { cmd->text.pos.x, cmd->text.pos.y, 0, mui_font_height() * 3 },
-          .colour = {
-            cmd->text.color.r / 255.f,
-            cmd->text.color.g / 255.f,
-            cmd->text.color.b / 255.f,
-            0,
-          },
-          .extent = { t->sw, t->sh },
-        };
-        for (char * c = cmd->text.str; *c; c++) {
-          pc.rect[2] = mui_font_width(*c) * 3;
-          uv(pc.uv, *c);
-          t->draw(t->ptr, &pc);
-          pc.rect[0] += pc.rect[2] + 2;
-        }
-        break;
-      }
-      case MU_COMMAND_CLIP: {
-        t->scissor(t->ptr,
-          cmd->clip.rect.x, cmd->clip.rect.y,
-          cmd->clip.rect.w, cmd->clip.rect.h);
-        break;
-      }
-      case MU_COMMAND_RECT: {
-        mui_upc_t pc = {
-          .rect   = {
-            cmd->rect.rect.x,
-            cmd->rect.rect.y,
-            cmd->rect.rect.w,
-            cmd->rect.rect.h,
-          },
-          .colour = {
-            cmd->rect.color.r / 255.f,
-            cmd->rect.color.g / 255.f,
-            cmd->rect.color.b / 255.f,
-            0xFFFF,
-          },
-          .extent = { t->sw, t->sh },
-        };
-        t->draw(t->ptr, &pc);
-        break;
-      }
-      case MU_COMMAND_ICON: {
-        mui_upc_t upc = {
-          .rect   = {
-            cmd->icon.rect.x,
-            cmd->icon.rect.y,
-            cmd->icon.rect.w,
-            cmd->icon.rect.h,
-          },
-          .colour = {
-            cmd->icon.color.r / 255.f,
-            cmd->icon.color.g / 255.f,
-            cmd->icon.color.b / 255.f,
-            cmd->icon.id,
-          },
-          .extent = { t->sw, t->sh },
-        };
-        t->draw(t->ptr, &upc);
-        break;
-      }
-    }
+  if (mui_draw_btn(t, 4, "Restart Level", (float[4]) { cl, r3, cr - cl, 15 + 16 })) {
+    gme_level(lvl_current);
+    mui_st_options = 0;
+    return;
   }
+
+    //if (mu_slider_ex(&mui_ctx, &mui_lvl, 1, sav_data.max_level + 1, 1, "Level %.0f", MU_OPT_ALIGNCENTER)) {
+    //  gme_level(mui_lvl - 1);
+    //}
 }
 
 void mui_run(const mui_api_t * t) {
