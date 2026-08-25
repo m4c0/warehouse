@@ -129,6 +129,22 @@ static int mui_hover(float rect[4]) {
     mui_my >= rect[1] && mui_my < (rect[1] + rect[3]);
 }
 
+static void mui_draw_box(const mui_api_t * t, float rect[4], float c0[4], float c1[4]) {
+  mui_upc_t pc = {
+    .rect   = { rect[0] - 2, rect[1] - 2, rect[2] + 4, rect[3] + 4 },
+    .colour = { c0[0], c0[1], c0[2], c0[3] },
+    .extent = { t->sw, t->sh },
+  };
+  t->draw(t->ptr, &pc);
+
+  pc = (mui_upc_t) {
+    .rect   = { rect[0], rect[1], rect[2], rect[3] },
+    .colour = { c1[0], c1[1], c1[2], c1[3] },
+    .extent = { t->sw, t->sh },
+  };
+  t->draw(t->ptr, &pc);
+}
+
 static int mui_draw_icon(const mui_api_t * t, float rect[4], float dim, float id) {
   int hover = mui_hover(rect);
   if (hover) {
@@ -146,6 +162,7 @@ static int mui_draw_icon(const mui_api_t * t, float rect[4], float dim, float id
 
   return hover && mui_mu && (mui_mid == id);
 }
+
 static int mui_draw_window(const mui_api_t * t, float rect[4]) {
   int hover_out = !mui_hover(rect);
   if (hover_out && mui_md) mui_mid = 1;
@@ -153,19 +170,10 @@ static int mui_draw_window(const mui_api_t * t, float rect[4]) {
     return 0;
   }
 
-  mui_upc_t pc = {
-    .rect   = { rect[0] - 2, rect[1] - 2, rect[2] + 4, rect[3] + 4 },
-    .colour = { 0.27, 0.47, 0.35, 0xFFFF },
-    .extent = { t->sw, t->sh },
-  };
-  t->draw(t->ptr, &pc);
+  mui_draw_box(t, rect, 
+      (float[4]) { 0.27, 0.47, 0.35, 0xFFFF },
+      (float[4]) { 0.04, 0.12, 0.08, 0xFFFF });
 
-  pc = (mui_upc_t) {
-    .rect   = { rect[0], rect[1], rect[2], rect[3] },
-    .colour = { 0.04, 0.12, 0.08, 0xFFFF },
-    .extent = { t->sw, t->sh },
-  };
-  t->draw(t->ptr, &pc);
   return 1;
 }
 
@@ -191,47 +199,31 @@ static int mui_draw_btn(const mui_api_t * t, int id, const char * str, float rec
     if (mui_md) mui_mid = id;
   }
 
-  mui_upc_t pc = {
-    .rect   = { rect[0] - 2, rect[1] - 2, rect[2] + 4, rect[3] + 4 },
-    .colour = { dim * 0.08, dim * 0.24, dim * 0.16, 0xFFFF },
-    .extent = { t->sw, t->sh },
-  };
-  t->draw(t->ptr, &pc);
-
-  pc = (mui_upc_t) {
-    .rect   = { rect[0], rect[1], rect[2], rect[3] },
-    .colour = { dim * 0.27, dim * 0.47, dim * 0.35, 0xFFFF },
-    .extent = { t->sw, t->sh },
-  };
-  t->draw(t->ptr, &pc);
+  mui_draw_box(t, rect, 
+      (float[4]) { dim * 0.08, dim * 0.24, dim * 0.16, 0xFFFF },
+      (float[4]) { dim * 0.27, dim * 0.47, dim * 0.35, 0xFFFF });
 
   float w = mui_strlen(str);
   mui_draw_str(t, str, rect[0] + (rect[2] - w) / 2, rect[1] + (rect[3] - 15) / 2);
   return hover && mui_mu && (mui_mid == id);
 }
 
-static int mui_draw_lvl(const mui_api_t * t, float rect[4]) {
+static void mui_draw_lvl(const mui_api_t * t, float rect[4]) {
   float dim = 0.8;
 
-  mui_upc_t pc = {
-    .rect   = { rect[0] - 2, rect[1] - 2, rect[2] + 4, rect[3] + 4 },
-    .colour = { dim * 0.27, dim * 0.47, dim * 0.35, 0xFFFF },
-    .extent = { t->sw, t->sh },
-  };
-  t->draw(t->ptr, &pc);
-
-  pc = (mui_upc_t) {
-    .rect   = { rect[0], rect[1], rect[2], rect[3] },
-    .colour = { dim * 0.08, dim * 0.24, dim * 0.16, 0xFFFF },
-    .extent = { t->sw, t->sh },
-  };
-  t->draw(t->ptr, &pc);
+  mui_draw_box(t, rect, 
+      (float[4]) { dim * 0.27, dim * 0.47, dim * 0.35, 0xFFFF },
+      (float[4]) { dim * 0.08, dim * 0.24, dim * 0.16, 0xFFFF });
 
   char str[16];
   snprintf(str, 16, "Level %02d", lvl_current + 1);
   float w = mui_strlen(str);
   mui_draw_str(t, str, rect[0] + (rect[2] - w) / 2, rect[1] + (rect[3] - 15) / 2);
-  return 0;
+
+    //if (mu_slider_ex(&mui_ctx, &mui_lvl, 1, sav_data.max_level + 1, 1, "Level %.0f", MU_OPT_ALIGNCENTER)) {
+    //  gme_level(mui_lvl - 1);
+    //}
+    //gme_level(mui_lvl - 1);
 }
 
 static int mui_st_options = 1;
@@ -261,19 +253,13 @@ static void mui_guarded_run(const mui_api_t * t) {
     sfx_toggle();
   }
 
-  if (mui_draw_lvl(t, (float[4]) { cl, r2, cr - cl, 15 + 16 })) {
-    //gme_level(mui_lvl - 1);
-  }
+  mui_draw_lvl(t, (float[4]) { cl, r2, cr - cl, 15 + 16 });
 
   if (mui_draw_btn(t, 4, "Restart Level", (float[4]) { cl, r3, cr - cl, 15 + 16 })) {
     gme_level(lvl_current);
     mui_st_options = 0;
     return;
   }
-
-    //if (mu_slider_ex(&mui_ctx, &mui_lvl, 1, sav_data.max_level + 1, 1, "Level %.0f", MU_OPT_ALIGNCENTER)) {
-    //  gme_level(mui_lvl - 1);
-    //}
 }
 
 void mui_run(const mui_api_t * t) {
