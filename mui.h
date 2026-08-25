@@ -213,6 +213,11 @@ static void mui_draw_lvl(const mui_api_t * t, float rect[4]) {
   int hover = mui_hover(rect);
   if (hover) {
     dim = 1.0;
+    if (mui_md) mui_mid = 0xF;
+  }
+  if (mui_mid == 0xF) {
+    dim = 1.0;
+    gme_level(sav_data.max_level * (mui_mx - rect[0]) / rect[2]);
   }
 
   mui_draw_box(t, rect, 
@@ -224,15 +229,12 @@ static void mui_draw_lvl(const mui_api_t * t, float rect[4]) {
   float w = mui_strlen(str);
   mui_draw_str(t, str, rect[0] + (rect[2] - w) / 2, rect[1] + (rect[3] - 15) / 2);
 
+  float x = (rect[2] - 8) * lvl_current / (float)sav_data.max_level;
+
   mui_draw_box(t,
-      (float[4]) { rect[0], rect[1], 8, rect[3] },
+      (float[4]) { rect[0] + x, rect[1], 8, rect[3] },
       (float[4]) { dim * 0.08, dim * 0.24, dim * 0.16, 0xFFFF },
       (float[4]) { dim * 0.27, dim * 0.47, dim * 0.35, 0xFFFF });
-
-    //if (mu_slider_ex(&mui_ctx, &mui_lvl, 1, sav_data.max_level + 1, 1, "Level %.0f", MU_OPT_ALIGNCENTER)) {
-    //  gme_level(mui_lvl - 1);
-    //}
-    //gme_level(mui_lvl - 1);
 }
 
 static int mui_st_options = 1;
