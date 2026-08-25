@@ -151,6 +151,35 @@ static int mui_draw_icon(const mui_api_t * t, float rect[4], float dim, float id
 
   return hover && mui_mu && (mui_mid == id);
 }
+static int mui_draw_window(const mui_api_t * t) {
+  const int ww = 340;
+  const int wh = 200;
+
+  int wx = (t->sw - ww) / 2;
+  int wy = (t->sh - wh) / 2;
+  int hover_out =
+    mui_mx < wx || mui_mx > wx + ww ||
+    mui_my < wy || mui_my > wy + wh;
+  if (hover_out && mui_md) mui_mid = 1;
+  if (hover_out && mui_mu && mui_mid == 1) {
+    return 0;
+  }
+
+  mui_upc_t pc = {
+    .rect   = { wx - 2, wy - 2, ww + 4, wh + 4 },
+    .colour = { 0.27, 0.47, 0.35, 0xFFFF },
+    .extent = { t->sw, t->sh },
+  };
+  t->draw(t->ptr, &pc);
+
+  pc = (mui_upc_t) {
+    .rect   = { wx, wy, ww, wh },
+    .colour = { 0.04, 0.12, 0.08, 0xFFFF },
+    .extent = { t->sw, t->sh },
+  };
+  t->draw(t->ptr, &pc);
+  return 1;
+}
 
 static float mui_lvl = 1;
 
@@ -160,17 +189,13 @@ static void mui_guarded_run(const mui_api_t * t) {
     mui_st_options = !mui_st_options;
   }
   if (!mui_st_options) return;
+  if (!mui_draw_window(t)) {
+    mui_st_options = 0;
+    return;
+  }
 
   int wx = (t->sw - 300) / 2;
   int wy = (t->sh - 200) / 2;
-  int hover_out =
-    mui_mx < wx || mui_mx > wx + 300 ||
-    mui_my < wy || mui_my > wy + 200;
-  if (hover_out && mui_md) mui_mid = 1;
-  if (hover_out && mui_mu && mui_mid == 1) {
-      mui_st_options = 0;
-      return;
-  }
 
   mu_begin(&mui_ctx);
 
@@ -179,7 +204,7 @@ static void mui_guarded_run(const mui_api_t * t) {
 
   mui_lvl = lvl_current + 1;
 
-  int opt = MU_OPT_NOCLOSE | MU_OPT_NOTITLE;
+  int opt = MU_OPT_NOCLOSE | MU_OPT_NOTITLE | MU_OPT_NOFRAME;
   if (mu_begin_window_ex(&mui_ctx, "!options", mu_rect(wx, wy, 300, 200), opt)) {
     mui_vspace(6);
 
