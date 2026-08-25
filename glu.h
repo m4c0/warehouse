@@ -50,8 +50,6 @@ void glu_init(const glu_init_t * t) {
   glu_resize(t->scr_w, t->scr_h);
 
   gme_init();
-
-  mui_init();
   snd_init(&sfx_filler);
 }
 

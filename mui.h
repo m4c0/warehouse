@@ -16,7 +16,6 @@ typedef struct mui_api_s {
 
 extern int mui_overlay;
 
-void mui_init();
 void mui_run(const mui_api_t * t);
 
 void mui_mouse_down(int x, int y);
@@ -29,9 +28,8 @@ void mui_mouse_up(int x, int y);
 #include "sav.h"
 #include "sfx.h"
 
-#include "microui.h"
+#include <math.h>
 
-mu_Context mui_ctx = {0};
 int mui_overlay = 0;
 
 static int mui_mx, mui_my;
@@ -50,41 +48,16 @@ static int mui_font_height() {
   return 5;
 }
 
-static int font_width(mu_Font f, const char * txt, int len) {
-  int w = 0;
-  for (; *txt; txt++) w += mui_font_width(*txt) * 3 + 2;
-  return w;
-}
-static int font_height(mu_Font f) {
-  return mui_font_height() * 3;
-}
-
-void mui_init() {
-  mu_init(&mui_ctx);
-
-  mui_ctx.text_width  = &font_width;
-  mui_ctx.text_height = &font_height;
-
-  mui_ctx.style->colors[MU_COLOR_WINDOWBG] = mu_color(10,  30, 20, 255);
-  mui_ctx.style->colors[MU_COLOR_BUTTON]   = mu_color(70, 120, 90, 255);
-}
-
 void mui_mouse_down(int x, int y) {
   mui_mouse_move(x, y);
   mui_md = 1;
-
-  mu_input_mousedown(&mui_ctx, x, y, 1);
 }
 void mui_mouse_move(int x, int y) {
   mui_mx = x; mui_my = y;
-
-  mu_input_mousemove(&mui_ctx, x, y);
 }
 void mui_mouse_up(int x, int y) {
   mui_mouse_move(x, y);
   mui_mu = 1;
-
-  mu_input_mouseup(&mui_ctx, x, y, 1);
 }
 
 static float cuv(char c, char base) {
@@ -217,7 +190,8 @@ static void mui_draw_lvl(const mui_api_t * t, float rect[4]) {
   }
   if (mui_mid == 0xF) {
     dim = 1.0;
-    gme_level(sav_data.max_level * (mui_mx - rect[0]) / rect[2]);
+    float l = roundf(sav_data.max_level * (mui_mx - rect[0]) / rect[2]);
+    gme_level(l < 0 ? 0 : l >= sav_data.max_level ? sav_data.max_level : l);
   }
 
   mui_draw_box(t, rect, 
