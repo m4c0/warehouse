@@ -67,7 +67,7 @@ static void run() {
   NSWindow * w = [POCWindow new];
   w.acceptsMouseMovedEvents = YES;
   w.contentViewController = vc;
-  w.styleMask = NSWindowStyleMaskTitled | NSWindowStyleMaskClosable | NSWindowStyleMaskMiniaturizable;
+  w.styleMask = NSWindowStyleMaskTitled | NSWindowStyleMaskClosable | NSWindowStyleMaskMiniaturizable | NSWindowStyleMaskResizable;
 
   NSRect crect = NSMakeRect(0, 0, 800, 600);
   NSRect frect = [w frameRectForContentRect:crect];
