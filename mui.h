@@ -210,15 +210,24 @@ static int mui_draw_btn(const mui_api_t * t, int id, const char * str, float rec
 
 static void mui_draw_lvl(const mui_api_t * t, float rect[4]) {
   float dim = 0.8;
+  int hover = mui_hover(rect);
+  if (hover) {
+    dim = 1.0;
+  }
 
   mui_draw_box(t, rect, 
-      (float[4]) { dim * 0.27, dim * 0.47, dim * 0.35, 0xFFFF },
-      (float[4]) { dim * 0.08, dim * 0.24, dim * 0.16, 0xFFFF });
+      (float[4]) { dim * 0.08, dim * 0.24, dim * 0.16, 0xFFFF },
+      (float[4]) { 0.04, 0.12, 0.08, 0xFFFF });
 
   char str[16];
   snprintf(str, 16, "Level %02d", lvl_current + 1);
   float w = mui_strlen(str);
   mui_draw_str(t, str, rect[0] + (rect[2] - w) / 2, rect[1] + (rect[3] - 15) / 2);
+
+  mui_draw_box(t,
+      (float[4]) { rect[0], rect[1], 8, rect[3] },
+      (float[4]) { dim * 0.08, dim * 0.24, dim * 0.16, 0xFFFF },
+      (float[4]) { dim * 0.27, dim * 0.47, dim * 0.35, 0xFFFF });
 
     //if (mu_slider_ex(&mui_ctx, &mui_lvl, 1, sav_data.max_level + 1, 1, "Level %.0f", MU_OPT_ALIGNCENTER)) {
     //  gme_level(mui_lvl - 1);
