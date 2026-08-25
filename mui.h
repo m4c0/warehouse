@@ -156,7 +156,7 @@ static int mui_draw_icon(const mui_api_t * t, float rect[4], float dim, float id
 }
 static void mui_guarded_run(const mui_api_t * t) {
   int toggle_options = 0;
-  if (mui_draw_icon(t, (float[4]) { 12, 12, 48, 48 }, 0.8, 0xEE00)) {
+  if (mui_draw_icon(t, (float[4]) { t->sw - 48 - 12, 12, 48, 48 }, 0.8, 0xEE00)) {
     toggle_options = 1;
   }
 
