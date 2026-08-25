@@ -41,7 +41,8 @@ static FILE * sav_open(const char * mode) {
 void sav_load() {
   FILE * f = sav_open("rb");
   if (!f) {
-    sav_data.cur_level = sav_data.max_level = 1;
+    sav_data.cur_level = 0;
+    sav_data.max_level = 1;
     return;
   }
   fread(&sav_data, sizeof(sav_t), 1, f);
