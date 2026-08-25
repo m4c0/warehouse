@@ -191,7 +191,7 @@ static void mui_draw_lvl(const mui_api_t * t, float rect[4]) {
   if (mui_mid == 0xF) {
     dim = 1.0;
     float l = roundf(sav_data.max_level * (mui_mx - rect[0]) / rect[2]);
-    gme_level(l < 0 ? 0 : l >= sav_data.max_level ? sav_data.max_level : l);
+    gme_level((l < 1 ? 1 : l >= sav_data.max_level ? sav_data.max_level : l) - 1);
   }
 
   mui_draw_box(t, rect, 
@@ -203,7 +203,7 @@ static void mui_draw_lvl(const mui_api_t * t, float rect[4]) {
   float w = mui_strlen(str);
   mui_draw_str(t, str, rect[0] + (rect[2] - w) / 2, rect[1] + (rect[3] - 15) / 2);
 
-  float x = (rect[2] - 8) * lvl_current / (float)sav_data.max_level;
+  float x = (rect[2] - 8) * lvl_current / ((float)sav_data.max_level - 1);
 
   mui_draw_box(t,
       (float[4]) { rect[0] + x, rect[1], 8, rect[3] },
