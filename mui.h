@@ -15,7 +15,6 @@ typedef struct mui_api_s {
   void (*scissor)(void * ptr, unsigned x, unsigned y, unsigned w, unsigned h);
 } mui_api_t;
 
-extern mu_Context mui_ctx;
 extern int mui_overlay;
 
 void mui_init();
@@ -23,6 +22,10 @@ void mui_run(const mui_api_t * t);
 
 int mui_font_width(char c);
 int mui_font_height();
+
+void mui_mouse_down(int x, int y);
+void mui_mouse_move(int x, int y);
+void mui_mouse_up(int x, int y);
 
 #ifdef MUI_IMPL
 #include "gme.h"
@@ -61,6 +64,16 @@ void mui_init() {
 
   mui_ctx.style->colors[MU_COLOR_WINDOWBG] = mu_color(10,  30, 20, 255);
   mui_ctx.style->colors[MU_COLOR_BUTTON]   = mu_color(70, 120, 90, 255);
+}
+
+void mui_mouse_down(int x, int y) {
+  mu_input_mousedown(&mui_ctx, x, y, 1);
+}
+void mui_mouse_move(int x, int y) {
+  mu_input_mousemove(&mui_ctx, x, y);
+}
+void mui_mouse_up(int x, int y) {
+  mu_input_mouseup(&mui_ctx, x, y, 1);
 }
 
 static void mui_label(const char * txt) {

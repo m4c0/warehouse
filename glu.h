@@ -87,13 +87,13 @@ void glu_move(int dx, int dy) {
 }
 
 void glu_mouse_move(int x, int y) {
-  mu_input_mousemove(&mui_ctx, x, y);
+  mui_mouse_move(x, y);
 }
 void glu_mouse_down(int x, int y) {
-  mu_input_mousedown(&mui_ctx, x, y, 1);
+  mui_mouse_down(x, y);
 }
 void glu_mouse_up(int x, int y) {
-  mu_input_mouseup(&mui_ctx, x, y, 1);
+  mui_mouse_up(x, y);
 }
 
 #endif
