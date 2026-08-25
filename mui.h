@@ -37,6 +37,11 @@ void mui_mouse_up(int x, int y);
 mu_Context mui_ctx = {0};
 int mui_overlay = 0;
 
+static int mui_mx, mui_my;
+static int mui_md;
+static int mui_mu;
+static int mui_mid;
+
 int mui_font_width(char c) {
   if ((c | 0x20) == 'i') return 1;
   if ((c | 0x20) == 'm') return 5;
@@ -68,12 +73,20 @@ void mui_init() {
 }
 
 void mui_mouse_down(int x, int y) {
+  mui_mouse_move(x, y);
+  mui_md = 1;
+
   mu_input_mousedown(&mui_ctx, x, y, 1);
 }
 void mui_mouse_move(int x, int y) {
+  mui_mx = x; mui_my = y;
+
   mu_input_mousemove(&mui_ctx, x, y);
 }
 void mui_mouse_up(int x, int y) {
+  mui_mouse_move(x, y);
+  mui_mu = 1;
+
   mu_input_mouseup(&mui_ctx, x, y, 1);
 }
 
@@ -122,21 +135,35 @@ static void uv(float * uv, char c) {
   uv[0] = uv[1] = uv[2] = uv[3] = 0;
 }
 
-void mui_run(const mui_api_t * t) {
+static int mui_draw_icon(const mui_api_t * t, float rect[4], float dim, float id) {
+  int hover =
+    mui_mx >= rect[0] && mui_mx < (rect[0] + rect[2]) &&
+    mui_my >= rect[1] && mui_my < (rect[1] + rect[3]);
+  if (hover) {
+    dim = 1;
+
+    if (mui_md) mui_mid = id;
+  }
+
+  mui_upc_t pc = {
+    .rect   = { rect[0], rect[1], rect[2], rect[3] },
+    .colour = { dim, dim, dim, id },
+    .extent = { t->sw, t->sh },
+  };
+  t->draw(t->ptr, &pc);
+
+  return hover && mui_mu && (mui_mid == id);
+}
+static void mui_guarded_run(const mui_api_t * t) {
+  int toggle_options = 0;
+  if (mui_draw_icon(t, (float[4]) { 12, 12, 48, 48 }, 0.8, 0xEE00)) {
+    toggle_options = 1;
+  }
+
   mu_begin(&mui_ctx);
 
   mui_ctx.style->padding = 12;
   mui_ctx.style->spacing = 8;
-
-  int toggle_options = 0;
-
-  int opt = MU_OPT_NOCLOSE | MU_OPT_NOTITLE | MU_OPT_NOFRAME | MU_OPT_NOSCROLL;
-  if (mu_begin_window_ex(&mui_ctx, "!main", mu_rect(0, 0, t->sw, 70), opt)) {
-    mu_layout_row(&mui_ctx, 2, (int[]) { -56, -1 }, 48);
-    mu_layout_next(&mui_ctx);
-    if (mu_button_ex(&mui_ctx, "", 0xEE00, opt)) toggle_options = 1;
-    mu_end_window(&mui_ctx);
-  }
 
   if (toggle_options) {
     mu_Container * cnt = mu_get_container(&mui_ctx, "!options");
@@ -154,7 +181,7 @@ void mui_run(const mui_api_t * t) {
 
   int wx = (t->sw - 300) / 2;
   int wy = (t->sh - 200) / 2;
-  opt = MU_OPT_NOCLOSE | MU_OPT_NOTITLE | MU_OPT_CLOSED;
+  int opt = MU_OPT_NOCLOSE | MU_OPT_NOTITLE | MU_OPT_CLOSED;
   if (mu_begin_window_ex(&mui_ctx, "!options", mu_rect(wx, wy, 300, 200), opt)) {
     mui_vspace(6);
 
@@ -255,6 +282,12 @@ void mui_run(const mui_api_t * t) {
       }
     }
   }
+}
+
+void mui_run(const mui_api_t * t) {
+  mui_guarded_run(t);
+
+  mui_md = mui_mu = 0;
 }
 
 #endif
