@@ -274,7 +274,7 @@ static int d3d_init_root_signature_mui() {
 
   const void * data = COM(blob, GetBufferPointer);
   size_t        len = COM(blob, GetBufferSize);
-  COM_CHK(d3d_device, CreateRootSignature, 0, data, len, &IID_ID3D12RootSignature, (void **)&d3d_root_sign);
+  COM_CHK(d3d_device, CreateRootSignature, 0, data, len, &IID_ID3D12RootSignature, (void **)&d3d_root_sign_mui);
 
   d3d_release(blob);
   d3d_release(err);
