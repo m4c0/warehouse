@@ -74,7 +74,7 @@ vec3 brick(vec2 p) {
 
 uint map_at(vec2 p, vec2 d) {
   vec2 uv = p;
-  uv = floor(d + uv * aww - vec2(0, 8)) / 32.0;
+  uv = floor(d + uv * aww - vec2(0, 8) - 0.001) / 32.0;
   uv = uv * 0.5 + 0.5;
   uvec2 id = clamp(uvec2(uv * 32), uvec2(0), uvec2(31, 23));
   return map[id.x + 32 * id.y];
