@@ -187,7 +187,7 @@ static int d3d_init_rtv(void) {
 }
 
 static int d3d_init_cmdlist() {
-  COM_CHK(d3d_device, CreateCommandList, 0, D3D12_COMMAND_LIST_TYPE_DIRECT, d3d_cmd_alloc, d3d_pso, &IID_ID3D12GraphicsCommandList, (void **)&d3d_cmd_list);
+  COM_CHK(d3d_device, CreateCommandList, 0, D3D12_COMMAND_LIST_TYPE_DIRECT, d3d_cmd_alloc, NULL, &IID_ID3D12GraphicsCommandList, (void **)&d3d_cmd_list);
   COM_CHK(d3d_cmd_list, Close);
   return 0;
 }
@@ -531,7 +531,7 @@ static void d3d_cmd_transition_barrier(ID3D12Resource * res, D3D12_RESOURCE_STAT
 }
 
 static void d3d_mui_draw(void * ptr, const mui_upc_t * pc) {
-  COM(d3d_cmd_list, SetGraphicsRoot32BitConstants, 1, sizeof(mui_upc_t) / 4, pc, 0);
+  COM(d3d_cmd_list, SetGraphicsRoot32BitConstants, 0, sizeof(mui_upc_t) / 4, pc, 0);
   COM(d3d_cmd_list, DrawInstanced, 4, 1, 0, 0);
 }
 static void d3d_mui_scissor(void * ptr, unsigned x, unsigned y, unsigned w, unsigned h) {
@@ -540,7 +540,7 @@ static void d3d_mui_scissor(void * ptr, unsigned x, unsigned y, unsigned w, unsi
 }
 int d3d_frame(void) {
   COM_CHK(d3d_cmd_alloc, Reset);
-  COM_CHK(d3d_cmd_list, Reset, d3d_cmd_alloc, d3d_pso);
+  COM_CHK(d3d_cmd_list, Reset, d3d_cmd_alloc, NULL);
 
   // TODO: do it once
   D3D12_TEXTURE_COPY_LOCATION dst = {
@@ -562,6 +562,7 @@ int d3d_frame(void) {
   COM(d3d_cmd_list, CopyTextureRegion, &dst, 0, 0, 0, &src, NULL);
   d3d_cmd_transition_barrier(d3d_txt, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 
+  COM(d3d_cmd_list, SetPipelineState, d3d_pso);
   COM(d3d_cmd_list, SetDescriptorHeaps, 1, (ID3D12DescriptorHeap *[]) { d3d_txt_heap });
 
   COM(d3d_cmd_list, SetGraphicsRootSignature, d3d_root_sign);
@@ -584,6 +585,8 @@ int d3d_frame(void) {
   COM(d3d_cmd_list, IASetPrimitiveTopology, D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
   COM(d3d_cmd_list, DrawInstanced, 3, 1, 0, 0);
 
+  COM(d3d_cmd_list, SetPipelineState, d3d_pso_mui);
+  COM(d3d_cmd_list, IASetPrimitiveTopology, D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
   COM(d3d_cmd_list, SetGraphicsRootSignature, d3d_root_sign_mui);
   COM(d3d_cmd_list, SetGraphicsRootDescriptorTable, 1, d3d_get_gpu_desc(d3d_txt_heap));
   glu_ui((mui_api_t[]) {{
