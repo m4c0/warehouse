@@ -211,7 +211,7 @@ static void mui_draw_lvl(const mui_api_t * t, float rect[4]) {
       (float[4]) { dim * 0.27, dim * 0.47, dim * 0.35, 0xFFFF });
 }
 
-static int mui_st_options = 1;
+static int mui_st_options = 0;
 static void mui_guarded_run(const mui_api_t * t) {
   if (mui_draw_icon(t, (float[4]) { t->sw - 48 - 12, 12, 48, 48 }, 0.8, 0xEE00)) {
     mui_st_options = !mui_st_options;
