@@ -1,4 +1,4 @@
-# sokoban
+# Casually Casual Warehouse Game
 
 A clone of the classical japanese warehouse game.
 
